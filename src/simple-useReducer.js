@@ -7,18 +7,19 @@ const isMountPhase = () => {// 判断是否首渲
   return current != null && current.hook == null;
 };
   
-const useState = (initialState) => {
+const useReducer = (reducer, initialState) => {
   let hook;
   if (isMountPhase()){
     hook = { 
       context: current,// 持有 current，以便 setState 找到对应的渲染函数
       state: initialState, 
     };
-    hook.setState = (newState) => {
+    hook.dispatch = (action) => {
+      const newState = reducer(action);
       hook.state = newState;
       current = hook.context;
-      const vNodes = current.Component(current.props);
-      render(vNodes);
+      const vnodes = current.Component(current.props);
+      render(vnodes);
     };
 
     if (!currentHook){
@@ -34,7 +35,15 @@ const useState = (initialState) => {
     current.hook = current.hook.next;// 下一个节点
   };
   
-  return [hook.state, hook.setState];
+  return [hook.state, hook.dispatch];
+}
+  
+const useState = (initialState) => {
+  const [state, dispatch] = useReducer((newState) => {
+    return newState;
+  }, initialState);
+  
+  return [state, dispatch];
 }
 
 const wrap = (Component, props) => {
@@ -56,13 +65,16 @@ let immediateID;
 const Component = (props) => {
   const [count, setCount] = useState(0);
   console.log(`oops，计数值已经被小恶魔更新成${count}了哦`);
-  const [visible, setVisible] = useState(false);
+  const [visible, dispatchVisible] = useReducer((action) => {
+    if (action == 'show') return true;
+    return false;
+  }, false);
   console.log(`oops，可见性已经被小恶魔更新成${visible}了哦`);
 
   if (!immediateID){
     immediateID = setImmediate(() => {
       setCount(count + 1);
-      setVisible(!visible);
+      dispatchVisible(!!visible ? 'hide' : 'show');
     });
   };
 };
