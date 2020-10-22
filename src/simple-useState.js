@@ -20,13 +20,16 @@ const wrap = (Component, props) => {
   render(vNodes, false);
 };
 
+let immediateID;
 const Component = (props, useState) => {
   const [count, setCount] = useState(0);
   console.log(`oops，计数值已经被小恶魔更新成${count}了哦`);
 
-  setImmediate(() => {
-    setCount(count + 1);
-  });
+  if (!immediateID){
+    immediateID = setImmediate(() => {
+      setCount(count + 1);
+    });
+  };
 };
 
 wrap(Component, {});
