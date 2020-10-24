@@ -2,9 +2,21 @@ import render from './common';
 
 let current = null;
 let currentHook = null;// 所有钩子收集后移入 current
+let didReceiveUpdate = false;// 状态更新标识
+
+let timer = null;
+const scheduleWork = () => {
+  if (!timer) timer = setTimeout(() => {
+    clearTimeout(timer);
+    timer = null;
+
+    const vNodes = current.Component(current.props);
+    if (didReceiveUpdate) render(vNodes);
+  }, 2000);
+}
 
 const isMountPhase = () => {// 判断是否首渲
-  return current != null && current.hook == null;
+  return current == null || current.hook == null;
 };
   
 const useReducer = (reducer, initialState) => {
@@ -12,14 +24,29 @@ const useReducer = (reducer, initialState) => {
   if (isMountPhase()){
     hook = { 
       context: current,// 持有 current，以便 setState 找到对应的渲染函数
+      reducer,
       state: initialState, 
     };
     hook.dispatch = (action) => {
-      const newState = reducer(action);
-      hook.state = newState;
+      const update = {
+        reducer,
+        action,
+        eagerState: hook.state,
+      };
+      if (!hook.queue){
+        const newState = reducer(action);
+        hook.eagerState = newState;
+
+        update.next = update;
+        hook.queue = update;
+      } else {
+        update.next = hook.queue.next;
+        hook.queue.next = update;
+        hook.queue = update;
+      };
+
       current = hook.context;
-      const vnodes = current.Component(current.props);
-      render(vnodes);
+      if (hook.queue) scheduleWork();
     };
 
     if (!currentHook){
@@ -33,6 +60,20 @@ const useReducer = (reducer, initialState) => {
   } else {
     hook = current.hook;
     current.hook = current.hook.next;// 下一个节点
+
+    const firstUpdate = hook.queue.next;// 取链表头元素
+    let update = firstUpdate;
+    let newState = hook.state;
+
+    while(update){
+      newState = update.eagerState ? update.eagerState : update.reducer(update.action);
+      if (hook.state != newState){// 模拟浅比较
+        didReceiveUpdate = true;
+        hook.state = newState;
+      }
+      update = update.next;
+      if (update == firstUpdate) break;
+    };
   };
   
   return [hook.state, hook.dispatch];
@@ -46,7 +87,7 @@ const useState = (initialState) => {
   return [state, dispatch];
 }
 
-const wrap = (Component, props) => {
+const renderWithHooks = (Component, props) => {
   current = {
     Component,
     props,
@@ -65,18 +106,14 @@ let immediateID;
 const Component = (props) => {
   const [count, setCount] = useState(0);
   console.log(`oops，计数值已经被小恶魔更新成${count}了哦`);
-  const [visible, dispatchVisible] = useReducer((action) => {
-    if (action == 'show') return true;
-    return false;
-  }, false);
-  console.log(`oops，可见性已经被小恶魔更新成${visible}了哦`);
 
   if (!immediateID){
     immediateID = setImmediate(() => {
-      setCount(count + 1);
-      dispatchVisible(!!visible ? 'hide' : 'show');
+      setCount(1);
+      setCount(2);
+      setCount(2);
     });
   };
 };
 
-wrap(Component, {});
+renderWithHooks(Component, {});

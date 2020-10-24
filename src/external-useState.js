@@ -4,7 +4,7 @@ let current = null;
 let currentHook = null;// 所有钩子收集后移入 current
 
 const isMountPhase = () => {// 判断是否首渲
-  return current != null && current.hook == null;
+  return current == null || current.hook == null;
 };
   
 const useState = (initialState) => {
@@ -37,7 +37,7 @@ const useState = (initialState) => {
   return [hook.state, hook.setState];
 }
 
-const wrap = (Component, props) => {
+const renderWithHooks = (Component, props) => {
   current = {
     Component,
     props,
@@ -67,4 +67,4 @@ const Component = (props) => {
   };
 };
 
-wrap(Component, {});
+renderWithHooks(Component, {});

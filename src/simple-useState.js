@@ -1,6 +1,6 @@
 import render from './common';
 
-const wrap = (Component, props) => {
+const renderWithHooks = (Component, props) => {
   let firstRender = true;
   let state;
 
@@ -32,4 +32,4 @@ const Component = (props, useState) => {
   };
 };
 
-wrap(Component, {});
+renderWithHooks(Component, {});
